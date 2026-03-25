@@ -8,3 +8,7 @@ whitenoise
 requests
 psycopg2-binary
 dj-database-url
+firebase-admin
+google-auth
+google-api-python-client
+google-cloud-firestore

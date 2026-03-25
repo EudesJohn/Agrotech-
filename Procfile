@@ -1,1 +1,1 @@
-web: gunicorn plantguard.wsgi
+web: gunicorn plantguard.wsgi:application
