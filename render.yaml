@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: agrotech-backend
+    env: python
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --no-input && python manage.py migrate
+    startCommand: gunicorn plantguard.wsgi
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false # Set manually in Render dashboard
+      - key: DATABASE_URL
+        fromDatabase:
+          name: agrotech-db
+          property: connectionString
+    disk:
+      name: agrotech-data
+      mountPath: /data
+      sizeGB: 1 # For SQLite if not using PostgreSQL
+
+databases:
+  - name: agrotech-db
+    plan: free
