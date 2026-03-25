@@ -9,9 +9,10 @@ class ApiConfig(AppConfig):
         # Initialisation de Firebase Admin
         if not firebase_admin._apps:
             try:
-                # Sur Render, si on n'a pas de fichier JSON, on initialise par défaut
-                # (nécessite que les variables d'environnement Google soient configurées ou par défaut)
-                firebase_admin.initialize_app()
-                print(">>> Firebase Admin Initialized Successfully")
+                # Configuration explicite de l'ID projet Agrotech pour Render
+                firebase_admin.initialize_app(options={
+                    'projectId': 'agrotech-ai-ff555'
+                })
+                print(">>> Firebase Admin Initialized for agrotech-ai-ff555")
             except Exception as e:
                 print(f">>> Firebase Admin Init Error: {e}")
