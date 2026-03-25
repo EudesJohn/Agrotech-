@@ -28,7 +28,7 @@ def diagnose_plant(request):
         image_data = image_data.split(';base64,')[1]
 
     try:
-        model = genai.GenerativeModel('gemini-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         prompt = """Tu es PlantGuard AI, l'expert agronome ultime pour l'Afrique. 
         Analyse cette image. Si l'image n'est pas une plante ou est illisible, tu dois le signaler dans la maladie.
         Tu DOIS répondre UNIQUEMENT avec un objet JSON valide.
@@ -63,7 +63,7 @@ def ai_search(request):
 
     try:
         system_prompt = "Tu es Agrotech Intelligence, l'IA experte en agriculture tropicale."
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(f"{system_prompt}\n\nQuestion: {query}")
         return Response({"status": "success", "answer": response.text.strip()})
     except Exception as e:
