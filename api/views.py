@@ -63,7 +63,7 @@ def ai_search(request):
 
     try:
         system_prompt = "Tu es Agrotech Intelligence, l'IA experte en agriculture tropicale."
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
         response = model.generate_content(f"{system_prompt}\n\nQuestion: {query}")
         return Response({"status": "success", "answer": response.text.strip()})
     except Exception as e:
