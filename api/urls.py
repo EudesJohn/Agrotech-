@@ -8,4 +8,5 @@ urlpatterns = [
     path('profiles/<str:firebase_uid>/', views.public_profile, name='public_profile'),
     path('reset-password/', views.reset_password, name='reset_password'),
     path('ai_search/', views.ai_search, name='ai_search'),
+    path('version/', views.version_check, name='version_check'),
 ]

@@ -8,9 +8,7 @@ from .models import UserProfile
 
 class FirebaseAuthentication(authentication.BaseAuthentication):
     """
-    Validation réelle du token JWT via Firebase Admin SDK.
-    Auto-crée l'utilisateur Django s'il n'existe pas encore.
-    Cela permet une intégration fluide sans inscription manuelle sur le backend.
+    VERSION PRODUCTION - SYNC V2 (Vérification réelle)
     """
     def authenticate(self, request):
         auth_header = request.META.get('HTTP_AUTHORIZATION')
@@ -20,22 +18,19 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
         id_token = auth_header.split(' ').pop()
         
         try:
-            # 1. Vérification du token avec le SDK Admin Firebase
+            # 1. Vérification du token
             decoded_token = auth.verify_id_token(id_token)
             uid = decoded_token.get('uid')
             email = decoded_token.get('email')
             name = decoded_token.get('name', 'Utilisateur Agrotech')
             picture = decoded_token.get('picture', '')
 
-            # 2. Récupération ou Création Automatique de l'utilisateur Django
-            # Requis pour les relations de modèles Django (historique, etc.)
+            # 2. Sync Auto
             try:
                 profile = UserProfile.objects.get(firebase_uid=uid)
                 user = profile.user
             except UserProfile.DoesNotExist:
-                # Création automatique et silencieuse (Mirroring)
                 username = email.split('@')[0] if email else f"user_{uid[:8]}"
-                # Unicité du username
                 if User.objects.filter(username=username).exists():
                     username = f"{username}_{uid[:4]}"
                 
@@ -50,13 +45,12 @@ class FirebaseAuthentication(authentication.BaseAuthentication):
                     firebase_uid=uid,
                     profile_picture=picture
                 )
-                print(f">>> SYNC : Nouvel utilisateur Django créé pour {user.email}")
+                print(f">>> [SYNC V2 SUCCESS] : {user.email}")
 
             return (user, None)
             
         except Exception as e:
-            # En mode DEBUG local, on peut logger plus de détails
-            if settings.DEBUG:
-                print(f"AUTH DEBUG ERROR: {str(e)}")
-            
-            raise exceptions.AuthenticationFailed(f"Authentification Firebase échouée : {str(e)}")
+            # MESSAGE UNIQUE POUR VÉRIFIER LE DÉPLOIEMENT
+            error_msg = f"[ERREUR SERVEUR V2 LIVE] : {str(e)}"
+            print(f">>> {error_msg}")
+            raise exceptions.AuthenticationFailed(error_msg)
