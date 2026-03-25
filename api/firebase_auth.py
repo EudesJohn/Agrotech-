@@ -1,45 +1,62 @@
 import firebase_admin
-from firebase_admin import credentials, auth
+from firebase_admin import auth
 from django.conf import settings
 from rest_framework import authentication
 from rest_framework import exceptions
+from django.contrib.auth.models import User
 from .models import UserProfile
 
 class FirebaseAuthentication(authentication.BaseAuthentication):
     """
-    Validation du token JWT envoyé par Vue.js (généré par Firebase Auth).
-    Si on valide, Django connecte l'utilisateur local correspondant.
+    Validation réelle du token JWT via Firebase Admin SDK.
+    Auto-crée l'utilisateur Django s'il n'existe pas encore.
+    Cela permet une intégration fluide sans inscription manuelle sur le backend.
     """
     def authenticate(self, request):
-        print(">>> AUTHENTICATING REQUEST...")
         auth_header = request.META.get('HTTP_AUTHORIZATION')
         if not auth_header:
             return None
         
-        token = auth_header.split(' ').pop()
-        
-        # En développement, on essaie de trouver l'utilisateur par le token (UID probable)
-        # ou on prend le premier utilisateur si aucun ne correspond pour ne pas bloquer l'IA.
+        id_token = auth_header.split(' ').pop()
         
         try:
-            # 1. Tentative avec le token direct (UID envoyé par le frontend en mode dégradé)
-            profile = UserProfile.objects.filter(firebase_uid=token).first()
-            
-            # 2. Alternative "mocked_" si c'est ce qui est stocké
-            if not profile:
-                mocked_uid = "mocked_uid_" + token[:5] if token else "mocked_uid"
-                profile = UserProfile.objects.filter(firebase_uid=mocked_uid).first()
-            
-            # 3. Fallback ultime : si on est en DEBUG, on prend n'importe quel profil pour l'analyse
-            if not profile and settings.DEBUG:
-                profile = UserProfile.objects.first()
-                if profile:
-                    print(f"WARN: Using fallback profile {profile.user.email} (Auth bypass)")
+            # 1. Vérification du token avec le SDK Admin Firebase
+            decoded_token = auth.verify_id_token(id_token)
+            uid = decoded_token.get('uid')
+            email = decoded_token.get('email')
+            name = decoded_token.get('name', 'Utilisateur Agrotech')
+            picture = decoded_token.get('picture', '')
 
-            if profile:
-                return (profile.user, None)
-            
-            raise exceptions.AuthenticationFailed('Aucun compte lié à cet utilisateur Firebase dans la DB locale.')
+            # 2. Récupération ou Création Automatique de l'utilisateur Django
+            # Requis pour les relations de modèles Django (historique, etc.)
+            try:
+                profile = UserProfile.objects.get(firebase_uid=uid)
+                user = profile.user
+            except UserProfile.DoesNotExist:
+                # Création automatique et silencieuse (Mirroring)
+                username = email.split('@')[0] if email else f"user_{uid[:8]}"
+                # Unicité du username
+                if User.objects.filter(username=username).exists():
+                    username = f"{username}_{uid[:4]}"
                 
+                user = User.objects.create(
+                    username=username,
+                    email=email or f"{uid}@firebase-user.com",
+                    first_name=name.split(' ')[0] if ' ' in name else name,
+                    last_name=" ".join(name.split(' ')[1:]) if ' ' in name else ""
+                )
+                profile = UserProfile.objects.create(
+                    user=user,
+                    firebase_uid=uid,
+                    profile_picture=picture
+                )
+                print(f">>> SYNC : Nouvel utilisateur Django créé pour {user.email}")
+
+            return (user, None)
+            
         except Exception as e:
-            raise exceptions.AuthenticationFailed(f'Erreur Firebase Auth Mock: {str(e)}')
+            # En mode DEBUG local, on peut logger plus de détails
+            if settings.DEBUG:
+                print(f"AUTH DEBUG ERROR: {str(e)}")
+            
+            raise exceptions.AuthenticationFailed(f"Authentification Firebase échouée : {str(e)}")
